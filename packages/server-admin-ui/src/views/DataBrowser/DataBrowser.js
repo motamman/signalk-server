@@ -9,6 +9,7 @@ import {
   Input,
   Form,
   Col,
+  Row,
   Label,
   FormGroup,
   Table
@@ -72,7 +73,9 @@ class DataBrowser extends Component {
         JSON.parse(localStorage.getItem(selectedSourcesStorageKey) || '[]')
       ),
       sourceFilterActive:
-        localStorage.getItem(sourceFilterActiveStorageKey) === 'true'
+        localStorage.getItem(sourceFilterActiveStorageKey) === 'true',
+      unitsConverter: null,
+      converterLoading: true
     }
 
     this.fetchSources = fetchSources.bind(this)
@@ -204,7 +207,43 @@ class DataBrowser extends Component {
     }
   }
 
-  componentDidMount() {
+  async componentDidMount() {
+    // Initialize the units converter FIRST, before subscribing to data
+    try {
+      if (window.SKUnitConverter) {
+        console.log('Loading units converter...')
+        const converter = await window.SKUnitConverter.SignalKUnitsConverter.fromServer(
+          undefined,
+          { autoConnect: true }  // Enable WebSocket for live preference updates
+        )
+
+        console.log('Units converter loaded, data count:', Object.keys(this.state.data).length)
+
+        // Create new data reference to force React to re-render all rows with conversions
+        this.setState({
+          unitsConverter: converter,
+          converterLoading: false,
+          data: { ...this.state.data }  // Shallow copy to trigger row re-renders
+        }, () => {
+          console.log('State updated with converter, all rows should re-render')
+        })
+
+        // Listen for preference changes
+        converter.onPreferenceChange(() => {
+          console.log('Unit preferences changed, forcing re-render...')
+          // Create new data reference to force re-render with new preferences
+          this.setState({ data: { ...this.state.data } })
+        })
+      } else {
+        console.warn('SKUnitConverter not found, proceeding without conversions')
+        this.setState({ converterLoading: false })
+      }
+    } catch (error) {
+      console.error('Units preference plugin error:', error)
+      this.setState({ converterLoading: false })
+    }
+
+    // Now fetch sources and subscribe to data
     this.fetchSources()
     this.subscribeToDataIfNeeded()
   }
@@ -341,6 +380,26 @@ class DataBrowser extends Component {
   }
 
   render() {
+    // Show loading while converter initializes
+    if (this.state.converterLoading) {
+      return (
+        <div className="animated fadeIn">
+          <Row>
+            <Col>
+              <Card>
+                <CardBody>
+                  <div style={{ textAlign: 'center', padding: '40px' }}>
+                    <div className="sk-spinner sk-spinner-pulse"></div>
+                    <p style={{ marginTop: '20px' }}>Loading unit converter...</p>
+                  </div>
+                </CardBody>
+              </Card>
+            </Col>
+          </Row>
+        </div>
+      )
+    }
+
     const contextOptions = this.getContextOptions()
     const currentContext = this.getCurrentContextValue()
 
@@ -665,6 +724,7 @@ class DataBrowser extends Component {
                           const meta =
                             this.state.meta[this.state.context][data.path]
                           const units = meta && meta.units ? meta.units : ''
+                          const originalUnits = meta && meta.originalUnits ? meta.originalUnits : ''
 
                           return (
                             <tr key={key}>
@@ -704,6 +764,9 @@ class DataBrowser extends Component {
                                       <CustomRenderer
                                         value={data.value}
                                         units={units}
+                                        originalUnits={originalUnits}
+                                        converter={this.state.unitsConverter}
+                                        path={data.path}
                                         {...meta?.renderer?.options}
                                       />
                                     )
@@ -712,6 +775,9 @@ class DataBrowser extends Component {
                                     <DefaultValueRenderer
                                       value={data.value}
                                       units={units}
+                                      originalUnits={originalUnits}
+                                      converter={this.state.unitsConverter}
+                                      path={data.path}
                                     />
                                   )
                                 })()}
