@@ -16,6 +16,7 @@ import {
 } from 'reactstrap'
 import moment from 'moment'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
+import { SignalKUnitsConverter } from 'signalk-units-preference/client'
 import Meta from './Meta'
 import { getValueRenderer, DefaultValueRenderer } from './ValueRenderers'
 
@@ -210,34 +211,29 @@ class DataBrowser extends Component {
   async componentDidMount() {
     // Initialize the units converter FIRST, before subscribing to data
     try {
-      if (window.SKUnitConverter) {
-        console.log('Loading units converter...')
-        const converter = await window.SKUnitConverter.SignalKUnitsConverter.fromServer(
-          undefined,
-          { autoConnect: true }  // Enable WebSocket for live preference updates
-        )
+      console.log('Loading units converter...')
+      const converter = await SignalKUnitsConverter.fromServer(
+        undefined,
+        { autoConnect: true }  // Enable WebSocket for live preference updates
+      )
 
-        console.log('Units converter loaded, data count:', Object.keys(this.state.data).length)
+      console.log('Units converter loaded, data count:', Object.keys(this.state.data).length)
 
-        // Create new data reference to force React to re-render all rows with conversions
-        this.setState({
-          unitsConverter: converter,
-          converterLoading: false,
-          data: { ...this.state.data }  // Shallow copy to trigger row re-renders
-        }, () => {
-          console.log('State updated with converter, all rows should re-render')
-        })
+      // Create new data reference to force React to re-render all rows with conversions
+      this.setState({
+        unitsConverter: converter,
+        converterLoading: false,
+        data: { ...this.state.data }  // Shallow copy to trigger row re-renders
+      }, () => {
+        console.log('State updated with converter, all rows should re-render')
+      })
 
-        // Listen for preference changes
-        converter.onPreferenceChange(() => {
-          console.log('Unit preferences changed, forcing re-render...')
-          // Create new data reference to force re-render with new preferences
-          this.setState({ data: { ...this.state.data } })
-        })
-      } else {
-        console.warn('SKUnitConverter not found, proceeding without conversions')
-        this.setState({ converterLoading: false })
-      }
+      // Listen for preference changes
+      converter.onPreferenceChange(() => {
+        console.log('Unit preferences changed, forcing re-render...')
+        // Create new data reference to force re-render with new preferences
+        this.setState({ data: { ...this.state.data } })
+      })
     } catch (error) {
       console.error('Units preference plugin error:', error)
       this.setState({ converterLoading: false })
