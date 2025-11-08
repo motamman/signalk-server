@@ -497,13 +497,6 @@ export const getValueRenderer = (path, meta) => {
 }
 
 export const DefaultValueRenderer = ({ value, units, originalUnits, converter, path }) => {
-  // Debug server-side conversions
-  if (!window._serverConversionDebugCount) window._serverConversionDebugCount = 0
-  if (window._serverConversionDebugCount < 5 && value && typeof value === 'object' && 'original' in value) {
-    console.log('Server conversion detected:', { path, value, units, originalUnits })
-    window._serverConversionDebugCount++
-  }
-
   // Check if value is already converted by the server (has original/converted/formatted structure)
   if (value && typeof value === 'object' && value !== null && !Array.isArray(value) && 'original' in value && 'formatted' in value) {
     // Server-side conversion
@@ -545,7 +538,7 @@ export const DefaultValueRenderer = ({ value, units, originalUnits, converter, p
           // For datetime/time, show base value and formatted value: base (formatted)
           return (
             <span className="text-primary">
-              {String(value)} <strong>{result.baseUnit || originalUnits || units || ''}</strong>
+              {String(value)} <strong>{result.metadata?.baseUnit || originalUnits || units || ''}</strong>
               {' '}
               <span style={{ opacity: 0.6 }}>
                 ({result.formatted})
@@ -555,16 +548,16 @@ export const DefaultValueRenderer = ({ value, units, originalUnits, converter, p
         }
 
         // For numeric conversions, show both base and target
-        if (typeof value === 'number' && typeof result.value === 'number' && result.value !== undefined && result.value !== null) {
-          const decimals = result.displayFormat === '0' ? 0 :
-                          result.displayFormat?.match(/\.(\d+)/)?.[1]?.length || 1
+        if (typeof value === 'number' && typeof result.converted === 'number' && result.converted !== undefined && result.converted !== null) {
+          const decimals = result.metadata?.displayFormat === '0' ? 0 :
+                          result.metadata?.displayFormat?.match(/\.(\d+)/)?.[1]?.length || 1
 
           return (
             <span className="text-primary">
-              {value} <strong>{result.baseUnit || originalUnits || units || ''}</strong>
+              {value} <strong>{result.metadata?.baseUnit || originalUnits || units || ''}</strong>
               {' '}
               <span style={{ opacity: 0.6 }}>
-                ({result.value.toFixed(decimals)} <strong>{result.symbol || result.targetUnit}</strong>)
+                ({result.converted.toFixed(decimals)} <strong>{result.metadata?.symbol || result.metadata?.targetUnit}</strong>)
               </span>
             </span>
           )

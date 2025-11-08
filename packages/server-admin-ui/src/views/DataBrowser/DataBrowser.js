@@ -16,7 +16,7 @@ import {
 } from 'reactstrap'
 import moment from 'moment'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { SignalKUnitsConverter } from 'signalk-units-preference/client'
+// Units converter will be dynamically imported with fallback support
 import Meta from './Meta'
 import { getValueRenderer, DefaultValueRenderer } from './ValueRenderers'
 
@@ -212,6 +212,11 @@ class DataBrowser extends Component {
     // Initialize the units converter FIRST, before subscribing to data
     try {
       console.log('Loading units converter...')
+
+      // Import from signalk-units-preference-core
+      // This client works with both -core and -adv server plugins
+      const { SignalKUnitsConverter } = await import('signalk-units-preference-core/client')
+
       const converter = await SignalKUnitsConverter.fromServer(
         undefined,
         { autoConnect: true }  // Enable WebSocket for live preference updates
